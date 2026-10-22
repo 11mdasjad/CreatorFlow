@@ -23,7 +23,7 @@
     "db:seed": "ts-node --project apps/api/tsconfig.json scripts/seed.ts",
     "db:local": "tsx scripts/local-postgres.ts",
     "mailbox": "ts-node --project apps/api/tsconfig.json scripts/mailbox.ts",
-    "test": "jest --runInBand",
+    "test": "jest --runInBand && npm run test:proxy",
     "test:e2e": "playwright test",
     "test:integration": "jest --runInBand --testPathPattern=integration",
     "admin:create": "ts-node --project apps/api/tsconfig.json scripts/admin.ts",
@@ -33,7 +33,8 @@
     "worker:local": "ts-node --project apps/api/tsconfig.json scripts/local-worker.ts",
     "format": "prettier --write apps scripts tests docs *.ts *.cjs *.json *.yml README.md",
     "email:worker": "ts-node --project apps/api/tsconfig.json scripts/email-worker.ts",
-    "email:check": "ts-node --project apps/api/tsconfig.json scripts/email-check.ts"
+    "email:check": "ts-node --project apps/api/tsconfig.json scripts/email-check.ts",
+    "test:proxy": "tsx --test tests/api-proxy.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1155.0",

@@ -16,3 +16,4 @@ artifacts/
 *.key
 *.log
 .DS_Store
+.vercel/

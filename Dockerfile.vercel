@@ -1,0 +1,25 @@
+# API-only image: the web service builds independently with Next.js.
+FROM node:22-bookworm-slim AS build
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/web/package.json ./apps/web/package.json
+RUN npm ci --no-audit --no-fund
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+COPY apps/api ./apps/api
+# Prisma generation requires a URL, but never connects to this build-only placeholder.
+RUN DATABASE_URL=postgresql://build:build@localhost:5432/build npm run db:generate && npm run build:api
+RUN npm prune --omit=dev --no-audit --no-fund
+
+FROM node:22-bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/apps/api/dist ./apps/api/dist
+COPY --from=build --chown=node:node /app/package.json ./package.json
+# Vercel container ingress defaults to port 80; PORT can override it at runtime.
+ENV NODE_ENV=production API_HOST=0.0.0.0 PORT=80
+USER node
+EXPOSE 80
+CMD ["node", "apps/api/dist/main.js"]

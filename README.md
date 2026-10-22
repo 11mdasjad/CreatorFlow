@@ -4,6 +4,8 @@ A functional full-stack creator-business SaaS scaffold: Next.js App Router + Nes
 
 **This is not a production certification or a claim that the entire original product roadmap is finished.** Core local flows work and are tested. Live Meta, payments, S3, and email delivery require credentials, approvals, and provider acceptance tests. See [implementation status](docs/STATUS.md) and [deployment](docs/DEPLOYMENT.md).
 
+For the proposed single-project Vercel setup, see [Vercel services deployment](docs/VERCEL.md), including runtime bindings, infrastructure requirements, and the pending worker/email setup.
+
 ## Start locally — no Docker required
 
 Use Node 22.12+ (22 LTS recommended) and npm.

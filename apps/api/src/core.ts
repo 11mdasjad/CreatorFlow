@@ -30,7 +30,7 @@ import Redis from 'ioredis';
 export const config = {
   production: process.env.NODE_ENV === 'production',
   appUrl: process.env.APP_URL || 'http://127.0.0.1:3000',
-  port: Number(process.env.API_PORT || 4000),
+  port: Number(process.env.PORT || process.env.API_PORT || 4000),
 };
 export function checkConfig() {
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
