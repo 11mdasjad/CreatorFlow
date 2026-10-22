@@ -1,0 +1,578 @@
+generator client {
+  provider = "prisma-client"
+  output = "../apps/api/src/generated/prisma"
+  moduleFormat = "cjs"
+}
+datasource db {
+  provider = "postgresql"
+}
+enum Role {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  LOST
+}
+enum PublishStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  FAILED
+  ARCHIVED
+}
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  name String
+  passwordHash String
+  verifiedAt DateTime?
+  suspendedAt DateTime?
+  isSuperAdmin Boolean @default(false)
+  notificationEmail Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sessions Session[]
+  tokens AuthToken[]
+  memberships WorkspaceMember[]
+}
+model Session {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  csrfHash String
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([expiresAt])
+}
+model AuthToken {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  purpose String
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+model Workspace {
+  id String @id @default(cuid())
+  name String
+  slug String @unique
+  category String @default("Creator")
+  timezone String @default("Asia/Kolkata")
+  onboardingStep Int @default(1)
+  suspendedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  members WorkspaceMember[]
+  invitations Invitation[]
+  accounts ConnectedSocialAccount[]
+  automations Automation[]
+  events AutomationEvent[]
+  leads Lead[]
+  forms LeadForm[]
+  magnets LeadMagnet[]
+  files FileAsset[]
+  store Store?
+  products Product[]
+  orders Order[]
+  courses Course[]
+  workflows Workflow[]
+  subscription Subscription?
+  usage UsageRecord[]
+  notifications Notification[]
+  tickets SupportTicket[]
+  audits AuditLog[]
+  oauthStates OAuthState[]
+}
+model WorkspaceMember {
+  id String @id @default(cuid())
+  workspaceId String
+  userId String
+  role Role @default(VIEWER)
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([workspaceId,userId])
+  @@index([userId])
+}
+model Invitation {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  email String
+  role Role @default(VIEWER)
+  tokenHash String @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([workspaceId])
+}
+model SubscriptionPlan {
+  id String @id @default(cuid())
+  name String @unique
+  description String @default("")
+  priceMinor Int?
+  currency String @default("INR")
+  published Boolean @default(false)
+  stripePriceId String?
+  limits Json
+  features Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  subscriptions Subscription[]
+}
+model Subscription {
+  id String @id @default(cuid())
+  workspaceId String @unique
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  planId String
+  plan SubscriptionPlan @relation(fields:[planId], references:[id])
+  status String @default("TRIALING")
+  trialEndsAt DateTime?
+  currentPeriodEnd DateTime?
+  providerCustomerId String? @unique
+  providerSubscriptionId String? @unique
+  cancelAtPeriodEnd Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model OAuthState {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  workspaceId String
+  userId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  expiresAt DateTime
+}
+model ConnectedSocialAccount {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  provider String @default("instagram")
+  externalId String @unique
+  username String
+  tokenCiphertext String
+  permissions String[]
+  expiresAt DateTime
+  status String @default("CONNECTED")
+  diagnostic String?
+  webhookSubscribed Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  automations Automation[]
+  @@unique([workspaceId,id])
+  @@index([workspaceId,status])
+}
+model Automation {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  accountId String?
+  account ConnectedSocialAccount? @relation(fields:[workspaceId,accountId], references:[workspaceId,id])
+  name String
+  trigger String @default("COMMENT")
+  mediaId String?
+  keywords String[]
+  matchMode String @default("CONTAINS")
+  message String
+  status PublishStatus @default(DRAFT)
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  executions AutomationExecution[]
+  @@unique([workspaceId,id])
+  @@index([workspaceId,status])
+}
+model AutomationEvent {
+  id String @id @default(cuid())
+  dedupeKey String @unique
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  accountExternalId String
+  commentId String
+  mediaId String?
+  text String
+  occurredAt DateTime
+  status String @default("PENDING")
+  createdAt DateTime @default(now())
+  executions AutomationExecution[]
+  @@unique([workspaceId,id])
+  @@index([status,createdAt])
+}
+model AutomationExecution {
+  id String @id @default(cuid())
+  workspaceId String
+  automationId String
+  automation Automation @relation(fields:[workspaceId,automationId], references:[workspaceId,id], onDelete:Cascade)
+  eventId String @unique
+  event AutomationEvent @relation(fields:[workspaceId,eventId], references:[workspaceId,id], onDelete:Cascade)
+  version Int
+  message String
+  status String @default("QUEUED")
+  providerMessageId String?
+  errorCode String?
+  attempts Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([workspaceId,createdAt])
+}
+model Lead {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  name String
+  email String
+  phone String?
+  instagram String?
+  source String @default("Manual")
+  tags String[]
+  status LeadStatus @default(NEW)
+  customFields Json @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  notes LeadNote[]
+  consents LeadConsent[]
+  submissions LeadFormSubmission[]
+  deliveries ResourceDelivery[]
+  @@unique([workspaceId,email])
+  @@unique([workspaceId,id])
+  @@index([workspaceId,status,createdAt])
+}
+model LeadNote {
+  id String @id @default(cuid())
+  workspaceId String
+  leadId String
+  lead Lead @relation(fields:[workspaceId,leadId], references:[workspaceId,id], onDelete:Cascade)
+  body String
+  authorId String
+  createdAt DateTime @default(now())
+}
+model LeadConsent {
+  id String @id @default(cuid())
+  workspaceId String
+  leadId String
+  lead Lead @relation(fields:[workspaceId,leadId], references:[workspaceId,id], onDelete:Cascade)
+  purpose String
+  granted Boolean
+  wording String
+  source String
+  createdAt DateTime @default(now())
+  @@index([workspaceId,leadId])
+}
+model LeadForm {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  name String
+  slug String @unique
+  description String @default("")
+  consentText String
+  fields Json @default("[]")
+  published Boolean @default(false)
+  visits Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  submissions LeadFormSubmission[]
+  magnets LeadMagnet[]
+  @@unique([workspaceId,id])
+}
+model LeadFormSubmission {
+  id String @id @default(cuid())
+  workspaceId String
+  formId String
+  form LeadForm @relation(fields:[workspaceId,formId], references:[workspaceId,id], onDelete:Cascade)
+  leadId String
+  lead Lead @relation(fields:[workspaceId,leadId], references:[workspaceId,id], onDelete:Cascade)
+  createdAt DateTime @default(now())
+  @@index([workspaceId,formId])
+}
+model FileAsset {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  key String @unique
+  filename String
+  mimeType String
+  size Int
+  status String @default("PENDING")
+  createdAt DateTime @default(now())
+  magnets LeadMagnet[]
+  products Product[]
+  @@unique([workspaceId,id])
+}
+model LeadMagnet {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  name String
+  description String @default("")
+  resourceUrl String?
+  fileId String?
+  file FileAsset? @relation(fields:[workspaceId,fileId], references:[workspaceId,id])
+  formId String?
+  form LeadForm? @relation(fields:[workspaceId,formId], references:[workspaceId,id])
+  published Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deliveries ResourceDelivery[]
+  @@unique([workspaceId,id])
+}
+model ResourceDelivery {
+  id String @id @default(cuid())
+  workspaceId String
+  magnetId String
+  magnet LeadMagnet @relation(fields:[workspaceId,magnetId], references:[workspaceId,id], onDelete:Cascade)
+  leadId String
+  lead Lead @relation(fields:[workspaceId,leadId], references:[workspaceId,id], onDelete:Cascade)
+  tokenHash String @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+model Store {
+  stripeAccountId String? @unique
+  id String @id @default(cuid())
+  workspaceId String @unique
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  name String
+  slug String @unique
+  description String @default("")
+  accent String @default("#7062ef")
+  published Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Product {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  name String
+  description String @default("")
+  kind String @default("DOWNLOAD")
+  priceMinor Int
+  currency String @default("INR")
+  published Boolean @default(false)
+  fileId String?
+  file FileAsset? @relation(fields:[workspaceId,fileId], references:[workspaceId,id])
+  courseId String?
+  course Course? @relation(fields:[workspaceId,courseId], references:[workspaceId,id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items OrderItem[]
+  entitlements DigitalEntitlement[]
+  @@unique([workspaceId,id])
+}
+model Order {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  email String
+  amountMinor Int
+  currency String
+  status String @default("PENDING")
+  checkoutId String? @unique
+  provider String @default("stripe")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items OrderItem[]
+  payment Payment?
+  entitlements DigitalEntitlement[]
+  @@unique([workspaceId,id])
+  @@index([workspaceId,createdAt])
+}
+model OrderItem {
+  id String @id @default(cuid())
+  workspaceId String
+  orderId String
+  order Order @relation(fields:[workspaceId,orderId], references:[workspaceId,id], onDelete:Cascade)
+  productId String
+  product Product @relation(fields:[workspaceId,productId], references:[workspaceId,id])
+  name String
+  priceMinor Int
+}
+model Payment {
+  id String @id @default(cuid())
+  orderId String @unique
+  order Order @relation(fields:[orderId], references:[id], onDelete:Cascade)
+  providerPaymentId String @unique
+  amountMinor Int
+  currency String
+  status String
+  createdAt DateTime @default(now())
+}
+model PaymentEvent {
+  id String @id
+  provider String
+  kind String
+  createdAt DateTime @default(now())
+}
+model DigitalEntitlement {
+  id String @id @default(cuid())
+  workspaceId String
+  orderId String
+  order Order @relation(fields:[workspaceId,orderId], references:[workspaceId,id], onDelete:Cascade)
+  productId String
+  product Product @relation(fields:[workspaceId,productId], references:[workspaceId,id])
+  email String
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([orderId,productId])
+  @@index([email])
+}
+model Course {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  name String
+  description String @default("")
+  published Boolean @default(false)
+  free Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  products Product[]
+  modules CourseModule[]
+  enrollments CourseEnrollment[]
+  @@unique([workspaceId,id])
+}
+model CourseModule {
+  id String @id @default(cuid())
+  workspaceId String
+  courseId String
+  course Course @relation(fields:[workspaceId,courseId], references:[workspaceId,id], onDelete:Cascade)
+  name String
+  position Int
+  lessons CourseLesson[]
+  @@unique([workspaceId,id])
+  @@unique([courseId,position])
+}
+model CourseLesson {
+  id String @id @default(cuid())
+  workspaceId String
+  moduleId String
+  module CourseModule @relation(fields:[workspaceId,moduleId], references:[workspaceId,id], onDelete:Cascade)
+  name String
+  body String
+  videoUrl String?
+  position Int
+  progress LessonProgress[]
+  @@unique([moduleId,position])
+}
+model CourseEnrollment {
+  id String @id @default(cuid())
+  workspaceId String
+  courseId String
+  course Course @relation(fields:[workspaceId,courseId], references:[workspaceId,id], onDelete:Cascade)
+  email String
+  createdAt DateTime @default(now())
+  @@unique([courseId,email])
+}
+model LessonProgress {
+  id String @id @default(cuid())
+  lessonId String
+  lesson CourseLesson @relation(fields:[lessonId], references:[id], onDelete:Cascade)
+  userId String
+  completedAt DateTime @default(now())
+  @@unique([lessonId,userId])
+}
+model Workflow {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  name String
+  status PublishStatus @default(DRAFT)
+  draft Json
+  publishedVersion Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  versions WorkflowVersion[]
+  @@unique([workspaceId,id])
+}
+model WorkflowVersion {
+  id String @id @default(cuid())
+  workspaceId String
+  workflowId String
+  workflow Workflow @relation(fields:[workspaceId,workflowId], references:[workspaceId,id], onDelete:Cascade)
+  version Int
+  graph Json
+  createdAt DateTime @default(now())
+  executions WorkflowExecution[]
+  @@unique([workflowId,version])
+}
+model WorkflowExecution {
+  id String @id @default(cuid())
+  versionId String
+  version WorkflowVersion @relation(fields:[versionId], references:[id], onDelete:Cascade)
+  eventKey String
+  leadId String
+  status String @default("QUEUED")
+  error String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([versionId,eventKey])
+}
+model UsageRecord {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  period String
+  metric String
+  count Int @default(0)
+  updatedAt DateTime @updatedAt
+  @@unique([workspaceId,period,metric])
+}
+model Notification {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  title String
+  body String
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([workspaceId,createdAt])
+}
+model SupportTicket {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields:[workspaceId], references:[id], onDelete:Cascade)
+  subject String
+  body String
+  status String @default("OPEN")
+  response String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([workspaceId])
+}
+model AuditLog {
+  id String @id @default(cuid())
+  workspaceId String?
+  workspace Workspace? @relation(fields:[workspaceId], references:[id], onDelete:SetNull)
+  actorId String
+  action String
+  targetId String?
+  createdAt DateTime @default(now())
+  @@index([workspaceId,createdAt])
+}
+model EmailOutbox {
+  id String @id @default(cuid())
+  to String
+  subject String
+  text String
+  status String @default("PENDING")
+  attempts Int @default(0)
+  error String?
+  nextAttemptAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status,nextAttemptAt])
+}
+model SystemSetting {
+  key String @id
+  value Json
+  updatedAt DateTime @updatedAt
+}

@@ -1,0 +1,12 @@
+node_modules
+.env
+.env.*
+.local
+.git
+apps/web/.next
+apps/api/dist
+apps/api/src/generated
+artifacts
+test-results
+playwright-report
+coverage

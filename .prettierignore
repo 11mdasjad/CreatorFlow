@@ -1,0 +1,10 @@
+node_modules
+.local
+.next
+apps/web/.next
+apps/api/dist
+apps/api/src/generated
+package-lock.json
+artifacts
+playwright-report
+test-results

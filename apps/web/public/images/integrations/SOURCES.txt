@@ -1,0 +1,8 @@
+Original vendor assets, downloaded 2026-10-23. Unmodified.
+Instagram: https://www.meta.com/brand/resources/instagram/instagram-brand/
+  IG_brand_asset_pack_2023.zip / 01 Static Glyph/01 Gradient Glyph/Instagram_Glyph_Gradient.png
+Stripe: https://stripe.com/newsroom/information
+  Official Stripe_logo_kit.zip / asset-wordmark/Stripe wordmark - Blurple.svg
+Amazon S3 and Amazon SES: https://aws.amazon.com/architecture/icons/
+  Official Icon-package_07312026.zip, 64px service SVGs for Simple Storage Service and Simple Email Service.
+CreatorFlow, CRM and Workflows use this project's existing branding and icons.

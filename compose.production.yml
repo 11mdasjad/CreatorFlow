@@ -1,0 +1,65 @@
+# Intended for a private network behind an HTTPS ALB / ingress. No public DB/Redis ports.
+# Use RDS and ElastiCache for AWS production; DATABASE_URL and REDIS_URL point to them.
+services:
+  migrate:
+    build:
+      context: .
+      target: migration
+      args:
+        APP_URL: ${APP_URL:?Set APP_URL}
+        API_INTERNAL_URL: http://api:4000
+    env_file: .env.production
+    command: ['npm', 'run', 'db:migrate']
+    restart: 'no'
+  api:
+    build:
+      context: .
+      target: runtime
+      args:
+        APP_URL: ${APP_URL:?Set APP_URL}
+        API_INTERNAL_URL: http://api:4000
+    env_file: .env.production
+    environment:
+      API_HOST: 0.0.0.0
+    command: ['node', 'apps/api/dist/main.js']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    expose: ['4000']
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  worker:
+    build:
+      context: .
+      target: runtime
+      args:
+        APP_URL: ${APP_URL:?Set APP_URL}
+        API_INTERNAL_URL: http://api:4000
+    env_file: .env.production
+    command: ['node', 'apps/api/dist/worker.js']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+  web:
+    build:
+      context: .
+      target: runtime
+      args:
+        APP_URL: ${APP_URL:?Set APP_URL}
+        API_INTERNAL_URL: http://api:4000
+    env_file: .env.production
+    command: ['npm', 'run', 'start', '--workspace', 'apps/web']
+    depends_on: [api]
+    ports: ['127.0.0.1:3000:3000']
+    restart: unless-stopped
