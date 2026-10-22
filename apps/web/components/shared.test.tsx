@@ -11,7 +11,7 @@ test('empty state gives a truthful next step', () => {
 test('overview does not fabricate revenue or delivery', () => {
   render(<MetricCards />);
   expect(screen.getByText('No paid orders in this period')).toBeInTheDocument();
-  expect(screen.getByText('Acceptance ≠ delivery or read')).toBeInTheDocument();
+  expect(screen.getByText('Accepted by Instagram; delivery unconfirmed')).toBeInTheDocument();
   expect(screen.getAllByText('0')).toHaveLength(3);
 });
 test('errors are accessible and actionable', () => {

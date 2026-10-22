@@ -6,7 +6,9 @@ test('marketing and mobile navigation render without overflow', async ({ page })
   await expect(
     page.getByRole('heading', { name: 'Turn your audience into customers.' }),
   ).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Start for Free', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('banner').getByRole('link', { name: 'Start for Free', exact: true }),
+  ).toBeVisible();
   mkdirSync('artifacts', { recursive: true });
   await page.screenshot({
     path: 'artifacts/marketing-desktop.png',
@@ -14,7 +16,9 @@ test('marketing and mobile navigation render without overflow', async ({ page })
     animations: 'disabled',
   });
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('link', { name: 'Start for Free', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('banner').getByRole('link', { name: 'Start for Free', exact: true }),
+  ).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
@@ -34,23 +38,25 @@ test('real login, persistent lead creation, simulation, workflows and mobile das
   await page.getByLabel('Password', { exact: false }).fill(password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Welcome back, Demo.' })).toBeVisible();
-  await expect(page.getByText('No paid orders in this period')).toBeVisible();
+  await expect(page.getByText('No paid orders yet')).toBeVisible();
   await page.screenshot({
     path: 'artifacts/dashboard-desktop.png',
     fullPage: true,
     animations: 'disabled',
   });
-  await page.getByRole('link', { name: 'Leads', exact: true }).click();
-  await page.getByRole('button', { name: 'New lead', exact: true }).click();
+  await page.getByRole('link', { name: 'Leads & CRM', exact: true }).click();
+  await page.getByRole('button', { name: 'Add lead', exact: true }).click();
   const suffix = Date.now();
   await page.getByLabel('Full name').fill(`QA Lead ${suffix}`);
   await page.getByLabel('Email address').fill(`qa-${suffix}@example.test`);
-  await page.getByRole('button', { name: 'Create lead', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Add lead', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: `Q QA Lead ${suffix} Manual`, exact: true }),
+    page.getByRole('button', { name: `View QA Lead ${suffix}`, exact: true }),
   ).toBeVisible();
   await page.reload();
-  await expect(page.getByText(`qa-${suffix}@example.test`)).toBeVisible();
+  await expect(
+    page.locator('.crm-table-card').getByText(`qa-${suffix}@example.test`),
+  ).toBeVisible();
   await page.getByRole('button', { name: `Edit QA Lead ${suffix}` }).click();
   await page.getByRole('combobox', { name: 'Status', exact: true }).selectOption('QUALIFIED');
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
@@ -58,7 +64,7 @@ test('real login, persistent lead creation, simulation, workflows and mobile das
     page
       .getByRole('row')
       .filter({ hasText: `qa-${suffix}@example.test` })
-      .getByText('QUALIFIED', { exact: true }),
+      .getByText('Qualified', { exact: true }),
   ).toBeVisible();
   await page.goto('/app/automations');
   await page.getByRole('button', { name: 'New automation' }).click();
@@ -139,7 +145,9 @@ test('public lead form saves consent and core workspace sections render', async 
   await page.getByRole('button', { name: 'Send my details' }).click();
   await expect(page.getByRole('heading', { name: 'You’re on the list.' })).toBeVisible();
   await page.goto('/app/leads');
-  await expect(page.getByText(`capture-${n}@example.test`)).toBeVisible();
+  await expect(
+    page.locator('.crm-table-card').getByText(`capture-${n}@example.test`),
+  ).toBeVisible();
   for (const [route, heading] of [
     ['lead-magnets', 'Share a little of what you know.'],
     ['store', 'Your expertise. Your storefront.'],
@@ -161,7 +169,8 @@ test('public lead form saves consent and core workspace sections render', async 
     animations: 'disabled',
   });
   await page.goto('/admin');
-  await expect(page.getByText('Platform admin access required')).toBeVisible();
+  await expect(page).toHaveURL(/\/app$/);
+  await expect(page.getByRole('heading', { name: 'Welcome back, Demo.' })).toBeVisible();
 });
 
 test('redesigned product cards retain create, edit, detail and delete actions', async ({
